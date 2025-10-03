@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { TicketController } from '../controllers/TicketController';
-import { BlockchainService } from '../services/BlockchainService';
+import { TicketController } from '../controllers/TicketController.js';
+import { BlockchainService } from '../services/BlockchainService.js';
 
 const blockchain = new BlockchainService();
 const controller = new TicketController(blockchain);

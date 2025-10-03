@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 
-import { router as apiRouter } from './routes';
+import { router as apiRouter } from './routes/index.js';
 
 const app = express();
 const corsOrigin = process.env.FRONTEND_ORIGIN || '*';

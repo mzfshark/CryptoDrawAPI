@@ -1,0 +1,114 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Ticket {
+  id              String      @id
+  owner           String
+  game            GameType
+  numbers         Int[]
+  numbersPacked   String
+  roundsBought    Int
+  roundsRemaining Int
+  firstDrawId     Int
+  createdAt       DateTime
+  expirationAt    DateTime
+  status          TicketStatus
+  txHash          String
+  blockNumber     BigInt
+  
+  draw            Draw        @relation(fields: [firstDrawId], references: [id])
+  
+  @@map("tickets")
+}
+
+model Draw {
+  id              Int         @id
+  game            GameType
+  scheduledAt     DateTime
+  cutoffAt        DateTime
+  status          DrawStatus
+  merkleRoot      String?
+  totalPoolUSD    String?
+  randomness      String?
+  winningNumbers  Int[]
+  winningPacked   String?
+  ticketCount     Int         @default(0)
+  
+  tickets         Ticket[]
+  results         DrawResult?
+  
+  @@map("draws")
+}
+
+model DrawResult {
+  id                Int             @id @default(autoincrement())
+  drawId            Int             @unique
+  winningNumbers    Int[]
+  winningPacked     String
+  totalPrizePool    String
+  totalWinners      Int
+  prizeDistribution Json            // Armazena array de PrizeDistribution como JSON
+  winnersByTier     Json            // Armazena WinnersByTier como JSON
+  createdAt         DateTime        @default(now())
+  
+  draw              Draw            @relation(fields: [drawId], references: [id])
+  
+  @@map("draw_results")
+}
+
+model Winner {
+  id              Int         @id @default(autoincrement())
+  ticketId        String
+  drawId          Int
+  tier            Int
+  matchCount      Int
+  prizeAmount     String
+  claimed         Boolean     @default(false)
+  claimedAt       DateTime?
+  claimTxHash     String?
+  createdAt       DateTime    @default(now())
+  
+  @@unique([ticketId, drawId])
+  @@map("winners")
+}
+
+model IndexerState {
+  id          Int      @id @default(autoincrement())
+  lastBlock   BigInt   @default(0)
+  network     String   @default("local")
+  updatedAt   DateTime @default(now()) @updatedAt
+  
+  @@unique([network])
+  @@map("indexer_state")
+}
+
+enum GameType {
+  LOTOFACIL
+  SUPERSETE
+}
+
+enum TicketStatus {
+  ACTIVE
+  EXPIRED
+  REDEEMED
+  BURNED
+}
+
+enum DrawStatus {
+  SCHEDULED
+  OPEN
+  CLOSED
+  CONSOLIDATED
+  RANDOM_REQUESTED
+  RANDOM_FULFILLED
+  SETTLED
+}

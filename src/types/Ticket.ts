@@ -1,6 +1,6 @@
 export enum GameType {
-  EASYLOTTO = 0,
-  SUPERSEVEN = 1,
+  LOTOFACIL = 0,
+  SUPERSETE = 1,
 }
 
 export enum TicketStatus {

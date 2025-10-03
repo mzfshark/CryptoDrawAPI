@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
-import { GameType, Ticket } from '../types/Ticket';
-import { BlockchainService } from '../services/BlockchainService';
+import { GameType, Ticket } from '../types/Ticket.js';
+import { BlockchainService } from '../services/BlockchainService.js';
+import { NumberPacking } from '../utils/NumberPacking.js';
 
 export class TicketController {
   private blockchainService: BlockchainService;
@@ -39,7 +40,7 @@ export class TicketController {
       let tickets = await this.blockchainService.getUserTickets(address);
       if (game !== undefined) {
         const gameType = Number(game);
-        if (gameType === GameType.EASYLOTTO || gameType === GameType.SUPERSEVEN) {
+        if (gameType === GameType.LOTOFACIL || gameType === GameType.SUPERSETE) {
           tickets = tickets.filter(t => t.game === gameType);
         }
       }
@@ -93,7 +94,7 @@ export class TicketController {
         res.status(400).json({ error: 'Numbers are required and must be an array', code: 'INVALID_NUMBERS' });
         return;
       }
-      if (game === undefined || (game !== GameType.EASYLOTTO && game !== GameType.SUPERSEVEN)) {
+      if (game === undefined || (game !== GameType.LOTOFACIL && game !== GameType.SUPERSETE)) {
         res.status(400).json({ error: 'Invalid game type', code: 'INVALID_GAME_TYPE' });
         return;
       }
@@ -116,16 +117,28 @@ export class TicketController {
   }
   private validateNumbers(numbers: number[], game: GameType): { isValid: boolean; errors: string[]; packed?: number } {
     const errors: string[] = [];
-    if (game === GameType.EASYLOTTO) {
-      if (numbers.length !== 15) errors.push('EasyLotto must have exactly 15 numbers');
-      if (numbers.some(n => n < 1 || n > 25)) errors.push('Numbers must be between 1 and 25');
-      if (new Set(numbers).size !== numbers.length) errors.push('Numbers must be unique');
-    } else if (game === GameType.SUPERSEVEN) {
-      if (numbers.length !== 7) errors.push('SuperSeven must have exactly 7 digits');
-      if (numbers.some(n => n < 0 || n > 9)) errors.push('Digits must be between 0 and 9');
+    
+    const isValid = NumberPacking.validateNumbers(numbers, game);
+    if (!isValid) {
+      if (game === GameType.LOTOFACIL) {
+        if (numbers.length !== 15) errors.push('Lotofácil must have exactly 15 numbers');
+        if (numbers.some(n => n < 1 || n > 25)) errors.push('Numbers must be between 1 and 25');
+        if (new Set(numbers).size !== numbers.length) errors.push('Numbers must be unique');
+      } else if (game === GameType.SUPERSETE) {
+        if (numbers.length !== 7) errors.push('SuperSete must have exactly 7 digits');
+        if (numbers.some(n => n < 0 || n > 9)) errors.push('Digits must be between 0 and 9');
+      }
     }
-    const isValid = errors.length === 0;
-    const packed = isValid ? 0 : undefined;
-    return { isValid, errors, packed };
+    
+    let packed: number | undefined;
+    if (isValid) {
+      try {
+        packed = NumberPacking.packNumbers(numbers, game);
+      } catch (error) {
+        errors.push('Error packing numbers');
+      }
+    }
+    
+    return { isValid: errors.length === 0, errors, packed };
   }
 }
