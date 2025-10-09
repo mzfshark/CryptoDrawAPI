@@ -3,6 +3,20 @@
  */
 export const blockchainConfig = {
   networks: {
+    harmony: {
+      rpcUrl: process.env.HARMONY_MAINNET_URL || 'https://api.harmony.one',
+      contractAddress: process.env.HARMONY_CONTRACT_ADDRESS || '',
+      startBlock: parseInt(process.env.HARMONY_START_BLOCK || '0'),
+      chainId: 1666600000,
+      confirmations: 3
+    },
+    harmony_testnet: {
+      rpcUrl: process.env.HARMONY_TESTNET_URL || 'https://api.s0.b.hmny.io',
+      contractAddress: process.env.HARMONY_TESTNET_CONTRACT_ADDRESS || '',
+      startBlock: parseInt(process.env.HARMONY_TESTNET_START_BLOCK || '0'),
+      chainId: 1666700000,
+      confirmations: 2
+    },
     mainnet: {
       rpcUrl: process.env.MAINNET_RPC_URL || '',
       contractAddress: process.env.MAINNET_CONTRACT_ADDRESS || '',

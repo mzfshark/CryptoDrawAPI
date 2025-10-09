@@ -1,3 +1,7 @@
+import { ethers } from 'ethers';
+import { DbService } from './DbService.js';
+import { contractABI, getActiveNetworkConfig, blockchainConfig } from '../config/blockchain.js';
+
 /**
  * Serviço de indexação de eventos blockchain
  * Escuta e processa eventos do contrato CryptoDraw
@@ -5,6 +9,9 @@
 export class EventIndexerService {
   private isRunning: boolean = false;
   private currentBlock: number = 0;
+  private provider?: ethers.JsonRpcProvider;
+  private contract?: ethers.Contract;
+  private networkName: string = process.env.NETWORK || 'local';
   
   /**
    * Inicia a indexação de eventos
@@ -19,12 +26,18 @@ export class EventIndexerService {
       console.log('Starting event indexer...');
       this.isRunning = true;
       
-      // Em produção, configuraria o provider e contrato ethers.js
-      // const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
-      // const contract = new ethers.Contract(contractAddress, abi, provider);
+      // Configura provider e contrato ethers.js
+      const net = getActiveNetworkConfig();
+      this.provider = new ethers.JsonRpcProvider(net.rpcUrl, net.chainId);
+      if (!net.contractAddress) {
+        console.warn(`[indexer] No contract address configured for network ${net.name}`);
+      } else {
+        this.contract = new ethers.Contract(net.contractAddress, contractABI, this.provider);
+      }
       
       // Recupera último bloco processado do banco
-      this.currentBlock = await this.getLastProcessedBlock();
+      const last = await DbService.getLastProcessedBlock(this.networkName);
+      this.currentBlock = Number(last);
       
       // Inicia loop de monitoramento
       this.startMonitoringLoop();
@@ -70,20 +83,37 @@ export class EventIndexerService {
    */
   private async processNewEvents(): Promise<void> {
     try {
-      // Em produção, buscaria eventos reais do contrato
-      // const latestBlock = await provider.getBlockNumber();
-      // const events = await contract.queryFilter({}, this.currentBlock + 1, latestBlock);
-      
-      // Mock: simula alguns eventos
-      const mockEvents = this.generateMockEvents();
-      
-      for (const event of mockEvents) {
-        await this.processEvent(event);
+      if (!this.provider || !this.contract) {
+        // Sem contrato configurado, faz fallback para mock
+        const mockEvents = this.generateMockEvents();
+        for (const event of mockEvents) {
+          await this.processEvent(event);
+        }
+        this.currentBlock += 1;
+        await DbService.saveLastProcessedBlock(this.networkName, BigInt(this.currentBlock));
+        return;
       }
-      
-      // Atualiza último bloco processado
-      this.currentBlock += 1;
-      await this.saveLastProcessedBlock(this.currentBlock);
+
+      const latestBlock = await this.provider.getBlockNumber();
+      if (latestBlock <= this.currentBlock) {
+        return; // nada novo
+      }
+
+      const fromBlock = this.currentBlock + 1;
+      const toBlock = latestBlock;
+      const maxRange = blockchainConfig.indexer.maxBlockRange;
+
+      let start = fromBlock;
+      while (start <= toBlock) {
+        const end = Math.min(start + maxRange - 1, toBlock);
+        const events = await this.contract.queryFilter({}, start, end);
+        for (const ev of events) {
+          await this.processEvent(ev);
+        }
+        this.currentBlock = end;
+        await DbService.saveLastProcessedBlock(this.networkName, BigInt(this.currentBlock));
+        start = end + 1;
+      }
       
     } catch (error) {
       console.error('Error processing new events:', error);
@@ -279,23 +309,7 @@ export class EventIndexerService {
   /**
    * Busca último bloco processado do banco
    */
-  private async getLastProcessedBlock(): Promise<number> {
-    // Em produção, buscaria do banco de dados
-    // const result = await db.query('SELECT last_block FROM indexer_state LIMIT 1');
-    // return result.rows[0]?.last_block || 0;
-    
-    return 0; // Mock
-  }
-
-  /**
-   * Salva último bloco processado no banco
-   */
-  private async saveLastProcessedBlock(blockNumber: number): Promise<void> {
-    // Em produção, salvaria no banco de dados
-    // await db.query('INSERT INTO indexer_state (last_block) VALUES ($1) ON CONFLICT DO UPDATE SET last_block = $1', [blockNumber]);
-    
-    console.log(`Saved last processed block: ${blockNumber}`);
-  }
+  // Persistência movida para DbService
 
   /**
    * Gera eventos mock para demonstração

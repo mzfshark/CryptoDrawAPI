@@ -19,23 +19,22 @@ Este diretório implementa o backend Node.js/Express para o sistema CryptoDraw, 
 
 ```
 src/
-├── backend/
-│   ├── controllers/          # Controladores REST
-│   ├── services/            # Lógica de negócio
-│   ├── models/             # Modelos de dados (compartilhados)
-│   ├── utils/              # Utilitários (compartilhados)
-│   ├── middleware/         # Middlewares Express
-│   ├── jobs/              # Background jobs
-│   ├── graphql/           # Schema e resolvers GraphQL
-│   ├── config/            # Configurações
-│   ├── types/             # Tipos TypeScript (compartilhados)
-│   ├── prisma/            # Schema do banco
-│   ├── migrations/        # Migrations SQL
-│   └── tests/            # Testes do backend
-├── models/                   # Modelos compartilhados entre front/backend
-├── utils/                    # Utilitários compartilhados
-├── services/                 # Services compartilhados (blockchain)
-└── components/              # Componentes React (frontend)
+│   ├── controllers/            # Controladores REST
+│   ├── services/               # Lógica de negócio
+│   ├── models/                 # Modelos de dados (compartilhados)
+│   ├── utils/                  # Utilitários (compartilhados)
+│   ├── middleware/             # Middlewares Express
+│   ├── jobs/                   # Background jobs
+│   ├── graphql/                # Schema e resolvers GraphQL
+│   ├── config/                 # Configurações
+│   ├── types/                  # Tipos TypeScript (compartilhados)
+│   ├── prisma/                 # Schema do banco
+│   ├── migrations/             # Migrations SQL
+│   └── tests/                  # Testes do backend
+├── models/                     # Modelos compartilhados entre front/backend
+├── utils/                      # Utilitários compartilhados
+├── services/                   # Services compartilhados (blockchain)
+└── components/                 # Componentes React (frontend)
 ```
 
 ## Funcionalidades Principais

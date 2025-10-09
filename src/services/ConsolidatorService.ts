@@ -1,7 +1,8 @@
-import { Ticket, GameType } from '../types/Ticket.js';
+import { Ticket, GameType, TicketStatus } from '../types/Ticket.js';
 import { Draw, DrawStatus, WinnersByTier } from '../types/Draw.js';
 import { MerkleTree, TicketLeafData } from '../utils/MerkleTree.js';
 import { NumberPacking } from '../utils/NumberPacking.js';
+import { DbService } from './DbService.js';
 
 /**
  * Serviço de consolidação off-chain conforme seção 6 da especificação
@@ -13,45 +14,25 @@ export class ConsolidatorService {
    */
   async collectValidTickets(drawId: number): Promise<Ticket[]> {
     try {
-      // Em produção, buscaria tickets do banco de dados
-      // Filtros: 
-      // - firstDrawId <= drawId <= firstDrawId + roundsRemaining - 1
-      // - status = ACTIVE
-      // - createdAt <= cutoffTime
-      
       console.log(`Collecting valid tickets for draw ${drawId}`);
-      
-      // Mock data para demonstração
-      const mockTickets: Ticket[] = [
-        {
-          id: '1',
-          owner: '0x1234567890123456789012345678901234567890',
-          game: GameType.LOTOFACIL,
-          numbers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
-          numbersPacked: '0x7fff', // Mock packed representation
-          roundsBought: 10,
-          roundsRemaining: 5,
-          firstDrawId: drawId - 2,
-          createdAt: new Date('2024-01-01T10:00:00Z'),
-          expirationAt: new Date('2024-01-11T10:00:00Z'),
-          status: 'ACTIVE' as any,
-          transactionHash: '0xabc123...',
-          blockNumber: 123456
-        }
-      ];
-      
-      // Filtra tickets válidos para este draw
-      const validTickets = mockTickets.filter(ticket => {
-        const isInValidRange = ticket.firstDrawId <= drawId && 
-                              drawId <= ticket.firstDrawId + ticket.roundsBought - 1;
-        const isActive = ticket.status === 'ACTIVE';
-        const notExpired = new Date() < ticket.expirationAt;
-        
-        return isInValidRange && isActive && notExpired;
-      });
-      
-      console.log(`Found ${validTickets.length} valid tickets`);
-      return validTickets;
+      const valid = await DbService.getValidTicketsForDraw(drawId);
+      console.log(`Found ${valid.length} valid tickets`);
+      // Converte para tipo Ticket do nosso domínio, se necessário
+      return valid.map((t: any) => ({
+        id: t.id,
+        owner: t.owner,
+        game: (t.game as string) === 'SUPERSETE' ? GameType.SUPERSETE : GameType.LOTOFACIL,
+        numbers: t.numbers as number[],
+        numbersPacked: t.numbersPacked,
+        roundsBought: t.roundsBought,
+        roundsRemaining: t.roundsRemaining,
+        firstDrawId: t.firstDrawId,
+        createdAt: new Date(t.createdAt),
+        expirationAt: new Date(t.expirationAt),
+        status: (t.status as string) as any,
+        transactionHash: t.txHash,
+        blockNumber: Number(t.blockNumber)
+      }));
       
     } catch (error) {
       console.error('Error collecting valid tickets:', error);
@@ -66,6 +47,7 @@ export class ConsolidatorService {
     root: string;
     leaves: string[];
     proofs: { [ticketId: string]: string[] };
+    leafIndexByTicket: { [ticketId: string]: number };
   }> {
     try {
       console.log(`Generating Merkle tree for ${tickets.length} tickets`);
@@ -92,9 +74,11 @@ export class ConsolidatorService {
       
       // Mapeia proofs por ticket ID
       const proofsByTicketId: { [ticketId: string]: string[] } = {};
+      const leafIndexByTicket: { [ticketId: string]: number } = {};
       tickets.forEach((ticket, index) => {
         const leaf = leaves[index];
         proofsByTicketId[ticket.id] = treeResult.proofs[leaf] || [];
+        leafIndexByTicket[ticket.id] = index;
       });
       
       console.log(`Generated Merkle root: ${treeResult.root}`);
@@ -102,7 +86,8 @@ export class ConsolidatorService {
       return {
         root: treeResult.root,
         leaves,
-        proofs: proofsByTicketId
+        proofs: proofsByTicketId,
+        leafIndexByTicket
       };
       
     } catch (error) {

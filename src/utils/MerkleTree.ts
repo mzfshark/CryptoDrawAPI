@@ -1,4 +1,5 @@
-// Implementação simples de hash para Merkle Tree
+import { ethers } from 'ethers';
+// Implementação de Merkle Tree usando keccak256 e ABI packing compatíveis com Solidity
 
 /**
  * Interface para ticket data usada na geração do leaf hash
@@ -27,16 +28,11 @@ export interface MerkleTreeResult {
 export class MerkleTree {
   
   /**
-   * Função de hash simples para substituir crypto
+   * keccak256(abi.encodePacked(hexString))
    */
-  private static simpleHash(input: string): string {
-    let hash = 0;
-    for (let i = 0; i < input.length; i++) {
-      const char = input.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32bit integer
-    }
-    return '0x' + Math.abs(hash).toString(16).padStart(64, '0');
+  private static keccakHex(inputHex: string): string {
+    const clean = inputHex.startsWith('0x') ? inputHex : `0x${inputHex}`;
+    return ethers.keccak256(clean as `0x${string}`);
   }
   
   /**
@@ -44,17 +40,19 @@ export class MerkleTree {
    * Hash = keccak256(abi.encodePacked(ticketId, owner, game, numbersPacked, roundsBought, firstDrawId))
    */
   static generateLeafHash(ticket: TicketLeafData): string {
-    // Simula abi.encodePacked concatenando os valores em formato hexadecimal
-    const ticketIdHex = BigInt(ticket.ticketId).toString(16).padStart(64, '0');
-    const ownerHex = ticket.owner.slice(2).toLowerCase(); // Remove 0x prefix
-    const gameHex = ticket.game.toString(16).padStart(64, '0');
-    const numbersPackedHex = ticket.numbersPacked.toString(16).padStart(64, '0');
-    const roundsBoughtHex = ticket.roundsBought.toString(16).padStart(64, '0');
-    const firstDrawIdHex = ticket.firstDrawId.toString(16).padStart(64, '0');
-    
-    const packed = ticketIdHex + ownerHex + gameHex + numbersPackedHex + roundsBoughtHex + firstDrawIdHex;
-    
-    return this.simpleHash(packed);
+    // Solidity: keccak256(abi.encodePacked(uint256,address,uint8,uint256,uint256,uint256))
+    const leaf = ethers.solidityPackedKeccak256(
+      ['uint256', 'address', 'uint8', 'uint256', 'uint256', 'uint256'],
+      [
+        BigInt(ticket.ticketId),
+        ticket.owner,
+        ticket.game,
+        BigInt(ticket.numbersPacked),
+        BigInt(ticket.roundsBought),
+        BigInt(ticket.firstDrawId)
+      ]
+    );
+    return leaf;
   }
 
   /**
@@ -161,15 +159,12 @@ export class MerkleTree {
    * Combina dois hashes em um hash pai
    */
   private static hashPair(left: string, right: string): string {
-    // Remove 0x prefix se presente
-    const leftClean = left.startsWith('0x') ? left.slice(2) : left;
-    const rightClean = right.startsWith('0x') ? right.slice(2) : right;
-    
-    // Ordena os hashes lexicograficamente para determinismo
-    const [first, second] = leftClean <= rightClean ? [leftClean, rightClean] : [rightClean, leftClean];
-    
-    const combined = first + second;
-    return this.simpleHash(combined);
+    const l = left as `0x${string}`;
+    const r = right as `0x${string}`;
+    // Ordenação determinística (opcional, conforme convenção)
+    const [first, second] = l.toLowerCase() <= r.toLowerCase() ? [l, r] : [r, l];
+    const combined = ethers.concat([first, second]);
+    return ethers.keccak256(combined);
   }
 
   /**

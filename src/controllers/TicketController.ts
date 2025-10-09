@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
 import { GameType, Ticket } from '../types/Ticket.js';
 import { BlockchainService } from '../services/BlockchainService.js';
+import { ConsolidatorService } from '../services/ConsolidatorService.js';
+import { MerkleTree } from '../utils/MerkleTree.js';
 import { NumberPacking } from '../utils/NumberPacking.js';
 
 export class TicketController {
@@ -74,13 +76,36 @@ export class TicketController {
         res.status(404).json({ error: 'Ticket not found', code: 'TICKET_NOT_FOUND' });
         return;
       }
-      const winningResult = await this.blockchainService.checkWinning(ticketId, Number(drawId));
-      if (!winningResult.isWinner) {
-        res.status(404).json({ error: 'Ticket is not a winner in this draw', code: 'NOT_A_WINNER' });
+      // Reconstroi Merkle proof a partir dos tickets válidos do draw
+      const consolidator = new ConsolidatorService();
+      const validTickets = await consolidator.collectValidTickets(Number(drawId));
+      if (!validTickets.find(t => t.id === ticketId)) {
+        res.status(404).json({ error: 'Ticket not valid for this draw', code: 'TICKET_NOT_IN_DRAW' });
         return;
       }
-      const proof = { ticketId, drawId: Number(drawId), tier: winningResult.tier, prizeAmount: winningResult.prizeAmount, merkleProof: [], leafIndex: 0 };
-      res.json({ success: true, data: proof });
+
+      const merkle = await consolidator.generateMerkleTree(validTickets);
+      const leaf = MerkleTree.generateLeafHash({
+        ticketId: ticket.id,
+        owner: ticket.owner,
+        game: ticket.game,
+        numbersPacked: parseInt(ticket.numbersPacked, 16) || 0,
+        roundsBought: ticket.roundsBought,
+        firstDrawId: ticket.firstDrawId
+      });
+      const proofArr = merkle.proofs[leaf] || merkle.proofs[ticketId] || [];
+
+      const winningResult = await this.blockchainService.checkWinning(ticketId, Number(drawId));
+      const response = {
+        ticketId,
+        drawId: Number(drawId),
+        tier: winningResult.tier ?? null,
+        prizeAmount: winningResult.prizeAmount ?? '0',
+        merkleRoot: merkle.root,
+        merkleProof: proofArr,
+        leafIndex: merkle.leafIndexByTicket[ticketId] ?? 0,
+      };
+      res.json({ success: true, data: response });
     } catch (error) {
       console.error('Error fetching proof:', error);
       res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_SERVER_ERROR' });
