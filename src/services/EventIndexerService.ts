@@ -1,6 +1,9 @@
 import { ethers } from 'ethers';
 import { DbService } from './DbService.js';
-import { contractABI, getActiveNetworkConfig, blockchainConfig } from '../config/blockchain.js';
+import { NumberPacking } from '../utils/NumberPacking.js';
+import { GameType } from '../types/Ticket.js';
+import { getActiveNetworkConfig, blockchainConfig } from '../config/blockchain.js';
+import CryptoDrawArtifact from '../abis/CryptoDrawV2.sol/CryptoDraw.json' assert { type: 'json' };
 
 /**
  * Serviço de indexação de eventos blockchain
@@ -11,7 +14,7 @@ export class EventIndexerService {
   private currentBlock: number = 0;
   private provider?: ethers.JsonRpcProvider;
   private contract?: ethers.Contract;
-  private networkName: string = process.env.NETWORK || 'local';
+  private networkName!: string;
   
   /**
    * Inicia a indexação de eventos
@@ -27,12 +30,14 @@ export class EventIndexerService {
       this.isRunning = true;
       
       // Configura provider e contrato ethers.js
-      const net = getActiveNetworkConfig();
+  const net = getActiveNetworkConfig();
+  this.networkName = net.name;
       this.provider = new ethers.JsonRpcProvider(net.rpcUrl, net.chainId);
       if (!net.contractAddress) {
         console.warn(`[indexer] No contract address configured for network ${net.name}`);
       } else {
-        this.contract = new ethers.Contract(net.contractAddress, contractABI, this.provider);
+        const abi = (CryptoDrawArtifact as any).abi;
+        this.contract = new ethers.Contract(net.contractAddress, abi, this.provider);
       }
       
       // Recupera último bloco processado do banco
@@ -106,9 +111,14 @@ export class EventIndexerService {
       let start = fromBlock;
       while (start <= toBlock) {
         const end = Math.min(start + maxRange - 1, toBlock);
+        // Consultar por blocos e por tópicos pode ser otimizado; por ora, usa queryFilter geral
         const events = await this.contract.queryFilter({}, start, end);
         for (const ev of events) {
-          await this.processEvent(ev);
+          try {
+            await this.processEvent(ev);
+          } catch (e) {
+            console.error('Error processing event log:', e);
+          }
         }
         this.currentBlock = end;
         await DbService.saveLastProcessedBlock(this.networkName, BigInt(this.currentBlock));
@@ -127,17 +137,17 @@ export class EventIndexerService {
   private async processEvent(event: any): Promise<void> {
     try {
       switch (event.eventName) {
-        case 'TicketMinted':
-          await this.handleTicketMinted(event);
+        case 'TicketPurchased':
+          await this.handleTicketPurchased(event);
           break;
         case 'DrawCreated':
           await this.handleDrawCreated(event);
           break;
-        case 'DrawConsolidated':
-          await this.handleDrawConsolidated(event);
+        case 'DrawClosed':
+          await this.handleDrawClosed(event);
           break;
-        case 'RandomnessFulfilled':
-          await this.handleRandomnessFulfilled(event);
+        case 'DrawCompleted':
+          await this.handleDrawCompleted(event);
           break;
         case 'PrizeClaimed':
           await this.handlePrizeClaimed(event);
@@ -154,29 +164,16 @@ export class EventIndexerService {
   /**
    * Processa evento TicketMinted
    */
-  async handleTicketMinted(event: any): Promise<void> {
-    console.log('Processing TicketMinted event:', event.args);
-    
+  async handleTicketPurchased(event: any): Promise<void> {
+    console.log('Processing TicketPurchased event:', event.args);
     try {
-      // Extrai dados do evento
-      const ticketData = {
-        id: event.args.ticketId.toString(),
-        owner: event.args.player,
-        game: event.args.game,
-        numbersPacked: event.args.numbersPacked.toString(),
-        roundsBought: event.args.roundsBought,
-        firstDrawId: event.args.firstDrawId,
-        transactionHash: event.transactionHash,
-        blockNumber: event.blockNumber
-      };
-      
-      // Em produção, salvaria no banco de dados
-      // await ticketRepository.create(ticketData);
-      
-      console.log(`Ticket ${ticketData.id} indexed successfully`);
-      
+      // A ABI do CryptoDraw não emite os números escolhidos nem rounds; aqui apenas atualizamos o draw
+      const drawId: number = Number(event.args.drawId ?? event.args[3]);
+      if (Number.isFinite(drawId)) {
+        await DbService.incrementDrawTicketCount(drawId, 1);
+      }
     } catch (error) {
-      console.error('Error handling TicketMinted event:', error);
+      console.error('Error handling TicketPurchased event:', error);
       throw error;
     }
   }
@@ -188,19 +185,21 @@ export class EventIndexerService {
     console.log('Processing DrawCreated event:', event.args);
     
     try {
-      const drawData = {
-        id: event.args.drawId,
-        game: event.args.game,
-        scheduledAt: new Date(event.args.scheduledTime * 1000),
-        cutoffAt: new Date(event.args.cutoffTime * 1000),
+      const drawId: number = Number(event.args.drawId ?? event.args[1]);
+      const gameRaw: number = Number(event.args.game ?? event.args[0]);
+      const scheduledAtSeconds: bigint = event.args.scheduledAt ?? event.args[2];
+      const when = new Date(Number(scheduledAtSeconds) * 1000);
+  const game = this.mapGameTypeString(gameRaw);
+
+      await DbService.upsertDraw({
+        id: drawId,
+        game,
+        scheduledAt: when,
+        cutoffAt: when,
         status: 'OPEN',
-        ticketCount: 0
-      };
-      
-      // Em produção, salvaria no banco de dados
-      // await drawRepository.create(drawData);
-      
-      console.log(`Draw ${drawData.id} indexed successfully`);
+        ticketCount: 0,
+      });
+      console.log(`Draw ${drawId} indexed successfully`);
       
     } catch (error) {
       console.error('Error handling DrawCreated event:', error);
@@ -209,52 +208,43 @@ export class EventIndexerService {
   }
 
   /**
-   * Processa evento DrawConsolidated
+   * Processa evento DrawClosed
    */
-  async handleDrawConsolidated(event: any): Promise<void> {
-    console.log('Processing DrawConsolidated event:', event.args);
-    
+  async handleDrawClosed(event: any): Promise<void> {
+    console.log('Processing DrawClosed event:', event.args);
     try {
-      const updateData = {
-        merkleRoot: event.args.merkleRoot,
-        totalPoolUSD: event.args.totalPool.toString(),
-        ticketCount: event.args.ticketCount,
-        status: 'CONSOLIDATED'
-      };
-      
-      // Em produção, atualizaria no banco de dados
-      // await drawRepository.update(event.args.drawId, updateData);
-      
-      console.log(`Draw ${event.args.drawId} consolidation indexed`);
-      
+      const drawId: number = Number(event.args.drawId ?? event.args[1]);
+      let closedAt = new Date();
+      if (this.provider && event.blockNumber) {
+        const block = await this.provider.getBlock(event.blockNumber);
+        if (block?.timestamp) closedAt = new Date(Number(block.timestamp) * 1000);
+      }
+      await DbService.updateDrawPartial(drawId, { status: 'CLOSED' as any, closedAt });
     } catch (error) {
-      console.error('Error handling DrawConsolidated event:', error);
+      console.error('Error handling DrawClosed event:', error);
       throw error;
     }
   }
 
   /**
-   * Processa evento RandomnessFulfilled
+   * Processa evento DrawCompleted
    */
-  async handleRandomnessFulfilled(event: any): Promise<void> {
-    console.log('Processing RandomnessFulfilled event:', event.args);
-    
+  async handleDrawCompleted(event: any): Promise<void> {
+    console.log('Processing DrawCompleted event:', event.args);
     try {
-      const updateData = {
-        randomness: event.args.randomness,
-        status: 'RANDOM_FULFILLED'
-      };
-      
-      // Em produção, atualizaria no banco de dados
-      // await drawRepository.update(event.args.drawId, updateData);
-      
-      // Agenda job para calcular números vencedores
-      // await jobQueue.add('calculate-winning-numbers', { drawId: event.args.drawId });
-      
-      console.log(`Randomness fulfilled for draw ${event.args.drawId}`);
-      
+      const gameRaw: number = Number(event.args.game ?? event.args[0]);
+      const drawId: number = Number(event.args.drawId ?? event.args[1]);
+      const winningPackedBN: bigint = event.args.winningNumbers ?? event.args[2];
+  const gameEnum = this.mapGameTypeEnum(gameRaw);
+  const packedNum = Number(winningPackedBN);
+  const nums = NumberPacking.unpackNumbers(packedNum, gameEnum);
+      await DbService.updateDrawPartial(drawId, {
+        status: 'SETTLED' as any,
+        winningPacked: winningPackedBN.toString(),
+        winningNumbers: nums,
+      } as any);
     } catch (error) {
-      console.error('Error handling RandomnessFulfilled event:', error);
+      console.error('Error handling DrawCompleted event:', error);
       throw error;
     }
   }
@@ -266,17 +256,9 @@ export class EventIndexerService {
     console.log('Processing PrizeClaimed event:', event.args);
     
     try {
-      // Atualiza status do ticket para REDEEMED
-      const updateData = {
-        status: 'REDEEMED',
-        claimedAt: new Date(),
-        claimTransactionHash: event.transactionHash
-      };
-      
-      // Em produção, atualizaria no banco de dados
-      // await ticketRepository.update(event.args.ticketId, updateData);
-      
-      console.log(`Prize claimed for ticket ${event.args.ticketId}`);
+      // O evento PrizeClaimed só contém player e amount no CryptoDrawV2
+      // Podemos registrar logs/estatísticas futuras aqui; por ora, apenas logamos
+      console.log(`Prize claimed by ${event.args.player ?? event.args[0]} amount ${event.args.amount ?? event.args[1]}`);
       
     } catch (error) {
       console.error('Error handling PrizeClaimed event:', error);
@@ -317,19 +299,32 @@ export class EventIndexerService {
   private generateMockEvents(): any[] {
     return [
       {
-        eventName: 'TicketMinted',
+        eventName: 'TicketPurchased',
         args: {
           ticketId: BigInt(Math.floor(Math.random() * 1000000)),
           player: '0x1234567890123456789012345678901234567890',
           game: 0, // LOTOFACIL
-          numbersPacked: BigInt('0x7fff'),
-          roundsBought: 10,
-          firstDrawId: 1
+          drawId: 1,
+          paymentToken: '0x0000000000000000000000000000000000000000',
+          paymentAmount: 0n,
+          agent: '0x0000000000000000000000000000000000000000'
         },
         transactionHash: '0x' + Math.random().toString(16).substr(2, 64),
         blockNumber: this.currentBlock + 1
       }
     ];
+  }
+
+  /**
+   * Mapeia número do enum on-chain para GameType do backend
+   */
+  private mapGameTypeString(gameRaw: number): 'LOTOFACIL' | 'SUPERSETE' {
+    // Assumindo 0 = LOTOFACIL, 1 = SUPERSETE
+    return gameRaw === 1 ? 'SUPERSETE' : 'LOTOFACIL';
+  }
+
+  private mapGameTypeEnum(gameRaw: number): GameType {
+    return gameRaw === 1 ? GameType.SUPERSETE : GameType.LOTOFACIL;
   }
 
   /**

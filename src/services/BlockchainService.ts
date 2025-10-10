@@ -1,6 +1,7 @@
 import { Ticket, GameType, TicketStatus } from '../types/Ticket.js';
 import { NumberPacking } from '../utils/NumberPacking.js';
 import { RandomnessDerivation } from '../utils/RandomnessDerivation.js';
+import { DbService } from './DbService.js';
 
 /**
  * Serviço para interação com blockchain e contratos
@@ -13,7 +14,27 @@ export class BlockchainService {
    */
   async getTicket(ticketId: string): Promise<Ticket | null> {
     try {
-      // Mock data - em produção buscaria do banco ou contrato
+      // Primeiro tenta no banco
+      const dbTicket = await DbService.getTicketById(ticketId);
+      if (dbTicket) {
+        return {
+          id: dbTicket.id,
+          owner: dbTicket.owner,
+          game: dbTicket.game === 'SUPERSETE' ? GameType.SUPERSETE : GameType.LOTOFACIL,
+          numbers: dbTicket.numbers as any,
+          numbersPacked: dbTicket.numbersPacked,
+          roundsBought: dbTicket.roundsBought,
+          roundsRemaining: dbTicket.roundsRemaining,
+          firstDrawId: dbTicket.firstDrawId,
+          createdAt: new Date(dbTicket.createdAt),
+          expirationAt: new Date(dbTicket.expirationAt),
+          status: dbTicket.status as any,
+          transactionHash: dbTicket.txHash,
+          blockNumber: Number(dbTicket.blockNumber)
+        };
+      }
+
+      // Fallback: Mock data - em produção buscaria do contrato
       const mockTickets: Record<string, Ticket> = {
         '1': {
           id: '1',
@@ -61,7 +82,27 @@ export class BlockchainService {
    */
   async getUserTickets(address: string): Promise<Ticket[]> {
     try {
-      // Mock data - filtra por endereço
+      // Primeiro tenta no banco
+      const dbTickets = await DbService.getTicketsByOwner(address);
+      if (dbTickets.length > 0) {
+        return dbTickets.map((db: any) => ({
+          id: db.id,
+          owner: db.owner,
+          game: db.game === 'SUPERSETE' ? GameType.SUPERSETE : GameType.LOTOFACIL,
+          numbers: db.numbers as any,
+          numbersPacked: db.numbersPacked,
+          roundsBought: db.roundsBought,
+          roundsRemaining: db.roundsRemaining,
+          firstDrawId: db.firstDrawId,
+          createdAt: new Date(db.createdAt),
+          expirationAt: new Date(db.expirationAt),
+          status: db.status as any,
+          transactionHash: db.txHash,
+          blockNumber: Number(db.blockNumber)
+        }));
+      }
+
+      // Fallback: Mock data - filtra por endereço
       const allTickets = [
         {
           id: '1',

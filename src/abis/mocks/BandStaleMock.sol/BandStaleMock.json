@@ -1,0 +1,127 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "BandStaleMock",
+  "sourceName": "contracts/mocks/BandStaleMock.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "name": "getReferenceData",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "rate",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "lastUpdatedBase",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "lastUpdatedQuote",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct BandStaleMock.ReferenceData",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "lastUpdatedBase",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "lastUpdatedQuote",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "price",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "p",
+          "type": "uint256"
+        }
+      ],
+      "name": "setPrice",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "base",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "quote",
+          "type": "uint256"
+        }
+      ],
+      "name": "setTimes",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x6080806040523461004d57670de0b6b3a76400006000556202a2ff194201428111610037578060015560025561023990816100538239f35b634e487b7160e01b600052601160045260246000fd5b600080fdfe608060408181526004918236101561001657600080fd5b600092833560e01c918263224348361461017b5782635c15e1981461015f5750816365555bcc146100bd57816391b7f5ed146100a457508063a035b1fe146100885763d827f2d61461006757600080fd5b346100845781600319360112610084576020906001549051908152f35b5080fd5b5034610084578160031936011261008457602091549051908152f35b8390346100845760203660031901126100845735815580f35b90503461015b578160031936011261015b5767ffffffffffffffff8135818111610157576100ee903690840161019a565b5050602435908111610153576060939161010a9136910161019a565b505080826101166101cd565b8281528260208201520152549060015460025490826101336101cd565b858152602081019283520191825282519384525160208401525190820152f35b8380fd5b8480fd5b8280fd5b8490346100845781600319360112610084576020906002548152f35b8482853461015b57366003190112610084573560015560243560025580f35b9181601f840112156101c85782359167ffffffffffffffff83116101c857602083818601950101116101c857565b600080fd5b604051906060820182811067ffffffffffffffff8211176101ed57604052565b634e487b7160e01b600052604160045260246000fdfea264697066735822122011e5ea7b02ae33e6f436a62d8961c39732e5a518670c994fc50c2ed1bd93b81764736f6c63430008120033",
+  "deployedBytecode": "0x608060408181526004918236101561001657600080fd5b600092833560e01c918263224348361461017b5782635c15e1981461015f5750816365555bcc146100bd57816391b7f5ed146100a457508063a035b1fe146100885763d827f2d61461006757600080fd5b346100845781600319360112610084576020906001549051908152f35b5080fd5b5034610084578160031936011261008457602091549051908152f35b8390346100845760203660031901126100845735815580f35b90503461015b578160031936011261015b5767ffffffffffffffff8135818111610157576100ee903690840161019a565b5050602435908111610153576060939161010a9136910161019a565b505080826101166101cd565b8281528260208201520152549060015460025490826101336101cd565b858152602081019283520191825282519384525160208401525190820152f35b8380fd5b8480fd5b8280fd5b8490346100845781600319360112610084576020906002548152f35b8482853461015b57366003190112610084573560015560243560025580f35b9181601f840112156101c85782359167ffffffffffffffff83116101c857602083818601950101116101c857565b600080fd5b604051906060820182811067ffffffffffffffff8211176101ed57604052565b634e487b7160e01b600052604160045260246000fdfea264697066735822122011e5ea7b02ae33e6f436a62d8961c39732e5a518670c994fc50c2ed1bd93b81764736f6c63430008120033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

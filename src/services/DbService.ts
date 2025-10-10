@@ -1,4 +1,4 @@
-import { PrismaClient, Ticket as DbTicket, Draw as DbDraw, IndexerState } from '@prisma/client';
+import { PrismaClient, Ticket as DbTicket, Draw as DbDraw } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -85,5 +85,48 @@ export class DbService {
       create: draw,
       update: draw,
     });
+  }
+
+  static async updateDrawPartial(id: number, data: Partial<DbDraw>) {
+    await prisma.draw.update({ where: { id }, data });
+  }
+
+  static async incrementDrawTicketCount(id: number, by: number = 1) {
+    await prisma.draw.update({ where: { id }, data: { ticketCount: { increment: by } } });
+  }
+
+  // Winners
+  static async upsertWinner(winner: {
+    ticketId: string;
+    drawId: number;
+    tier: number;
+    matchCount: number;
+    prizeAmount: string;
+    claimed?: boolean;
+    claimTxHash?: string | null;
+  }) {
+    await prisma.winner.upsert({
+      where: { ticketId_drawId: { ticketId: winner.ticketId, drawId: winner.drawId } },
+      create: {
+        ticketId: winner.ticketId,
+        drawId: winner.drawId,
+        tier: winner.tier,
+        matchCount: winner.matchCount,
+        prizeAmount: winner.prizeAmount,
+        claimed: !!winner.claimed,
+        claimTxHash: winner.claimTxHash ?? null,
+      },
+      update: {
+        tier: winner.tier,
+        matchCount: winner.matchCount,
+        prizeAmount: winner.prizeAmount,
+        claimed: !!winner.claimed,
+        claimTxHash: winner.claimTxHash ?? null,
+      },
+    });
+  }
+
+  static async updateTicketStatus(id: string, status: 'ACTIVE' | 'EXPIRED' | 'REDEEMED' | 'BURNED') {
+    await prisma.ticket.update({ where: { id }, data: { status } });
   }
 }

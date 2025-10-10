@@ -1,0 +1,78 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "BandMock",
+  "sourceName": "contracts/mocks/BandMock.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "name": "getReferenceData",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "rate",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "lastUpdatedBase",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "lastUpdatedQuote",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct BandMock.ReferenceData",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "price",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "p",
+          "type": "uint256"
+        }
+      ],
+      "name": "setPrice",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x6080806040523461002257671bc16d674ec800006000556101b690816100288239f35b600080fdfe604060808152600436101561001357600080fd5b600090813560e01c806365555bcc1461007c57806391b7f5ed1461005f5763a035b1fe1461004057600080fd5b3461005b578160031936011261005b57602091549051908152f35b5080fd5b823461007957602036600319011261007957600435815580f35b80fd5b503461005b578060031936011261005b5767ffffffffffffffff600435818111610113576100ae903690600401610117565b505060243590811161010f57916100cb6060933690600401610117565b505080826100d761014a565b828152826020820152015254906100ec61014a565b828152816020820191428352019042825282519384525160208401525190820152f35b8280fd5b8380fd5b9181601f840112156101455782359167ffffffffffffffff8311610145576020838186019501011161014557565b600080fd5b604051906060820182811067ffffffffffffffff82111761016a57604052565b634e487b7160e01b600052604160045260246000fdfea2646970667358221220639b8bc52c9bbcdf04be9d114b6ea9830d76b03cc1b0f1831b7919c45b91da6264736f6c63430008120033",
+  "deployedBytecode": "0x604060808152600436101561001357600080fd5b600090813560e01c806365555bcc1461007c57806391b7f5ed1461005f5763a035b1fe1461004057600080fd5b3461005b578160031936011261005b57602091549051908152f35b5080fd5b823461007957602036600319011261007957600435815580f35b80fd5b503461005b578060031936011261005b5767ffffffffffffffff600435818111610113576100ae903690600401610117565b505060243590811161010f57916100cb6060933690600401610117565b505080826100d761014a565b828152826020820152015254906100ec61014a565b828152816020820191428352019042825282519384525160208401525190820152f35b8280fd5b8380fd5b9181601f840112156101455782359167ffffffffffffffff8311610145576020838186019501011161014557565b600080fd5b604051906060820182811067ffffffffffffffff82111761016a57604052565b634e487b7160e01b600052604160045260246000fdfea2646970667358221220639b8bc52c9bbcdf04be9d114b6ea9830d76b03cc1b0f1831b7919c45b91da6264736f6c63430008120033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
